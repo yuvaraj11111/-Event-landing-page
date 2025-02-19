@@ -1,0 +1,62 @@
+from flask import Flask, request, jsonify, send_from_directory
+from flask_cors import CORS
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+import os
+app = Flask(__name__)
+CORS(app)
+# Email configuration
+SMTP_SERVER = "smtp.gmail.com" SMTP_PORT = 587
+SENDER_EMAIL = "pandugaadu8247@gmail.com" SENDER_PASSWORD = "dlmo efxa gujs dfpm" @app.route('/')
+def serve_html():
+return send_from_directory('.', 'index.html')
+@app.route('/<path:path>')
+def serve_static(path):
+return send_from_directory('.', path)
+def send_confirmation_email(recipient_email, name, attendees, food_preference):
+try:
+# Create message
+msg = MIMEMultipart()
+msg['From'] = SENDER_EMAIL
+msg['To'] = recipient_email
+msg['Subject'] = "TechConf 2024 Registration Confirmation" # Email body
+body = f""" Dear {name}, 
+Thank you for registering for TechConf 2024! We're excited to have you join us
+Registration Details: - Number of Attendees: {attendees}
+- Food Preference: {food_preference}
+Event Details: - Date: March 15-17, 2024
+- Time: 9:00 AM - 6:00 PM
+- Location: Tech Center, Silicon Valley
+Please save this email for your records. We will send you additional informationand updates as we get closer to the event. If you have any questions, please don't hesitate to contact us. Best regards, TechConf 2024 Team
+""" msg.attach(MIMEText(body, 'plain'))
+# Create SMTP session
+server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+server.starttls()
+server.login(SENDER_EMAIL, SENDER_PASSWORD)
+# Send email
+text = msg.as_string()
+server.sendmail(SENDER_EMAIL, recipient_email, text)
+server.quit()
+return True
+except Exception as e:
+print(f"Error sending email: {str(e)}")
+return False
+@app.route('/api/register', methods=['POST'])
+def register():
+try:
+data = request.json
+name = data.get('name')
+email = data.get('email')
+attendees = data.get('attendees')
+food_preference = data.get('food')
+if not all([name, email, attendees, food_preference]):
+return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+# Send confirmation email
+if send_confirmation_email(email, name, attendees, food_preference):
+return jsonify({'success': True, 'message': 'Registration successful! Check your email forconfirmation.'}), 200
+else:
+return jsonify({'success': False, 'message': 'Failed to send confirmation email'}), 500except Exception as e:
+return jsonify({'success': False, 'message': str(e)}), 500
+if __name__ == '__main__':
+app.run(debug=True, port=5000)
